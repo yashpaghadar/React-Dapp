@@ -19,58 +19,62 @@ const Backend = () => {
   ];
 
   // Contract address
-  const contractAddress = '0x60FCC1CCA8D6661Dcd573af7370EaED61F99B768';
+  const contractAddress = '0xd48724AB09dD375Fb45F2CB3B30D45DADE3f2230';
 
   // Initialize contract
-  const initContract = async () => {
+  const initContract = async (signer) => {
     try {
       if (!window.ethereum) {
-        setError('Please install MetaMask');
-        return null;
+        throw new Error('Please install MetaMask');
       }
 
-      // Initialize provider and signer
+      // Initialize provider
       const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
       
-      // Initialize contract
+      // Check network
+      const network = await provider.getNetwork();
+      if (network.chainId !== 11155111) { // Sepolia chain ID
+        throw new Error('Please switch to Sepolia testnet');
+      }
+
+      // Initialize contract with signer
       const contract = new ethers.Contract(contractAddress, abi, signer);
       
-      // Check contract exists
-      try {
-        const code = await provider.getCode(contractAddress);
-        if (code === '0x') {
-          throw new Error('Contract not deployed at this address');
-        }
-      } catch (err) {
-        throw new Error('Could not verify contract deployment');
+      // Verify contract exists
+      const code = await provider.getCode(contractAddress);
+      if (code === '0x') {
+        throw new Error('Contract not deployed at this address');
       }
       
-      // Check if we can call a contract function
-      try {
-        const greeting = await contract.greet();
-        if (!greeting) {
-          throw new Error('Contract is not responding');
-        }
-      } catch (err) {
-        throw new Error('Could not interact with contract');
+      // Verify we can interact with contract
+      const greeting = await contract.greet();
+      if (!greeting) {
+        throw new Error('Contract is not responding');
       }
       
       return contract;
     } catch (err) {
       console.error('Contract initialization error:', err);
-      setError(err.message || 'Error connecting to contract');
-      return null;
+      throw err;
     }
   };
 
   // Get initial greeting
   useEffect(() => {
     const loadInitialGreeting = async () => {
-      const contract = await initContract();
-      if (contract) {
-        const initialGreeting = await contract.greet();
-        setGreeting(initialGreeting);
+      try {
+        if (!window.ethereum) return;
+        
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
+        const contract = await initContract(signer);
+        
+        if (contract) {
+          const initialGreeting = await contract.greet();
+          setGreeting(initialGreeting);
+        }
+      } catch (error) {
+        console.error('Error loading initial greeting:', error);
       }
     };
     loadInitialGreeting();
@@ -98,9 +102,13 @@ const Backend = () => {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
         
-        // Initialize contract
-        const initializedContract = await initContract(signer);
-        setContract(initializedContract);
+        try {
+          const initializedContract = await initContract(signer);
+          setContract(initializedContract);
+        } catch (error) {
+          console.error('Error initializing contract:', error);
+          setError(error.message);
+        }
       }      
     } catch (error) {
       setError(error.message || 'Error connecting wallet');
