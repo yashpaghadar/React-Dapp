@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
+import Loading from './Loading';
 
 const Backend = () => {
   const [walletAddress, setWalletAddress] = useState("");
@@ -7,78 +8,80 @@ const Backend = () => {
   const [error, setError] = useState("");
   const [greeting, setGreeting] = useState('Not set yet');
   const [contract, setContract] = useState(null);
-  const [newGreeting, setNewGreeting] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [input, setInput] = useState("");
 
   // Contract ABI
   const abi = [
+    'constructor(string memory _greeting)',
     'function greet() view returns (string)',
-    'function setGreeting(string memory _greeting) public',
-    'function owner() view returns (address)',
-    'event GreetingUpdated(string oldGreeting, string newGreeting)'
+    'function setGreeting(string memory _greeting)'
   ];
 
   // Contract address
-  const contractAddress = '0xd48724AB09dD375Fb45F2CB3B30D45DADE3f2230';
+  const contractAddress = '0x794922e3AfBd490D22B33b31E374F486Ef3803D0';
+
+  // Update greeting
+  const updateGreeting = async (newGreeting) => {
+    try {
+      if (!contract) {
+        throw new Error('Contract not initialized');
+      }
+
+      setLoading(true);
+      setError('');
+
+      // Update greeting
+      const tx = await contract.setGreeting(newGreeting);
+      await tx.wait(); // Wait for transaction to be mined
+
+      // Get updated greeting
+      const updatedGreeting = await contract.greet();
+      setGreeting(updatedGreeting);
+      return true; // Return success
+    } catch (error) {
+      console.error('Error updating greeting:', error);
+      setError(error.message);
+      return false; // Return failure
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Initialize contract
   const initContract = async (signer) => {
     try {
-      if (!window.ethereum) {
-        throw new Error('Please install MetaMask');
-      }
-
-      // Initialize provider
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      if (!signer) return null;
       
-      // Check network
-      const network = await provider.getNetwork();
-      if (network.chainId !== 11155111) { // Sepolia chain ID
-        throw new Error('Please switch to Sepolia testnet');
-      }
-
-      // Initialize contract with signer
+      // Initialize contract
       const contract = new ethers.Contract(contractAddress, abi, signer);
       
-      // Verify contract exists
-      const code = await provider.getCode(contractAddress);
-      if (code === '0x') {
-        throw new Error('Contract not deployed at this address');
-      }
-      
-      // Verify we can interact with contract
-      const greeting = await contract.greet();
-      if (!greeting) {
-        throw new Error('Contract is not responding');
+      // Get initial greeting with retry
+      try {
+        // First try to get greeting
+        const initialGreeting = await contract.greet();
+        setGreeting(initialGreeting);
+      } catch (greetingError) {
+        console.error('Error getting initial greeting:', greetingError);
+        // If error, try setting a default greeting
+        try {
+          // Set default greeting
+          await contract.setGreeting("Hello World!");
+          const initialGreeting = await contract.greet();
+          setGreeting(initialGreeting);
+        } catch (setGreetingError) {
+          console.error('Error setting default greeting:', setGreetingError);
+          setGreeting('Not set yet');
+        }
       }
       
       return contract;
-    } catch (err) {
-      console.error('Contract initialization error:', err);
-      throw err;
+    } catch (error) {
+      console.error('Error initializing contract:', error);
+      setError('Error initializing contract');
+      return null;
     }
   };
-
-  // Get initial greeting
-  useEffect(() => {
-    const loadInitialGreeting = async () => {
-      try {
-        if (!window.ethereum) return;
-        
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const signer = provider.getSigner();
-        const contract = await initContract(signer);
-        
-        if (contract) {
-          const initialGreeting = await contract.greet();
-          setGreeting(initialGreeting);
-        }
-      } catch (error) {
-        console.error('Error loading initial greeting:', error);
-      }
-    };
-    loadInitialGreeting();
-  }, []);
 
   // Handle connect
   const handleConnect = async () => {
@@ -102,14 +105,10 @@ const Backend = () => {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
         
-        try {
-          const initializedContract = await initContract(signer);
-          setContract(initializedContract);
-        } catch (error) {
-          console.error('Error initializing contract:', error);
-          setError(error.message);
-        }
-      }      
+        // Initialize contract
+        const initializedContract = await initContract(signer);
+        setContract(initializedContract);
+      }
     } catch (error) {
       setError(error.message || 'Error connecting wallet');
     }
@@ -122,7 +121,6 @@ const Backend = () => {
     setError("");
     setGreeting('Not set yet');
     setContract(null);
-    setNewGreeting('');
   };
 
   // Handle account changes
@@ -136,8 +134,8 @@ const Backend = () => {
           setIsConnected(true);
           
           try {
-            const provider = new ethers.BrowserProvider(window.ethereum);
-            const signer = await provider.getSigner();
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const signer = provider.getSigner();
             const initializedContract = await initContract(signer);
             setContract(initializedContract);
           } catch (error) {
@@ -161,156 +159,81 @@ const Backend = () => {
     };
   }, []);
 
-  // Update greeting
-  const updateGreeting = async (newGreeting) => {
+  const handleInputChange = (e) => {
+    setInput(e.target.value);
+  };
+
+  const handleUpdate = async () => {
+    if (!input.trim()) return;
+
     try {
-      if (!contract) {
-        throw new Error('Contract not initialized');
+      setLoading(true);
+      setError('');
+      const result = await updateGreeting(input);
+      if (result) {
+        setInput("");
+      } else {
+        setError("Failed to update greeting");
       }
-
-      if (!newGreeting.trim()) {
-        throw new Error('Please enter a valid greeting');
-      }
-
-      setIsLoading(true);
-      
-      // Get current greeting first
-      const currentGreeting = await contract.greet();
-      
-      // Call contract
-      const tx = await contract.setGreeting(newGreeting);
-      
-      // Wait for transaction
-      const receipt = await tx.wait();
-      
-      // Verify transaction success
-      if (receipt.status !== 1) {
-        throw new Error('Transaction failed');
-      }
-      
-      // Verify new greeting
-      const newGreetingOnChain = await contract.greet();
-      if (newGreetingOnChain !== newGreeting) {
-        throw new Error('Greeting update failed - value mismatch');
-      }
-      
-      // Update state
-      setGreeting(newGreeting);
-      setNewGreeting('');
-      setError('Greeting updated successfully!');
-      setTimeout(() => setError(''), 3000);
     } catch (error) {
       console.error('Error updating greeting:', error);
-      setError(error.message || 'Error updating greeting');
+      setError(error.message || "Failed to update greeting");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+
+
   return (
     <div className="backend-container">
-      <div className="header">
-        <div className="title-section">
-          <h1 className="app-title">Greeter dApp</h1>
-        </div>
-        <div className="wallet-actions">
-          {!isConnected ? ( 
-            <button 
-              onClick={handleConnect} 
-              className="connect-btn primary-btn"
-            >
-              Connect Wallet
-            </button>
-          ) : (
-            <div className="wallet-info">
-              <div className="address-display">
-                <span className="address-label">Connected:</span>
-                <span className="address-value">{walletAddress.substring(0, 6)}...</span>
-              </div>
-              <button 
-                onClick={handleDisconnect} 
-                className="disconnect-btn secondary-btn"
-              >
-                Disconnect
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
+      {loading && <Loading />}
       {error && (
-        <div className="error-message error-alert">
-          <div className="error-icon">⚠️</div>
-          <span className="error-text">{error}</span>
+        <div className="error-message">
+          {error}
         </div>
       )}
+      <div className="header">
+        <h1>Greeter dApp</h1>
+        {!isConnected ? (
+          <button onClick={handleConnect} className="connect-btn">
+            Connect Wallet
+          </button>
+        ) : (
+          <div className="wallet-info">
+            <span>Connected: {walletAddress.substring(0, 6)}...</span>
+            <button onClick={handleDisconnect} className="disconnect-btn">
+              Disconnect
+            </button>
+          </div>
+        )}
+      </div>
 
       {isConnected && contract && (
         <div className="content">
-          {isLoading ? (
-            <div className="loading-container">
-              <div className="loading-spinner"></div>
-              <p className="loading-text">Updating greeting...</p>
-            </div>
-          ) : (
-            <>
-              <div className="greeting-section card">
-                <div className="greeting-display">
-                  <h2>Current Greeting</h2>
-                  <p className="current-greeting">{greeting}</p>
-                </div>
-              </div>
-              <div className="update-section card">
-                <div className="input-group">
-                  <div className="input-wrapper">
-                    <input 
-                      type="text" 
-                      placeholder="Enter new greeting..."
-                      className="input-field"
-                      value={newGreeting}
-                      onChange={(e) => setNewGreeting(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && e.target.value.trim()) {
-                          updateGreeting(e.target.value);
-                        }
-                      }}
-                      disabled={isLoading}
-                    />
-                    <div className="input-hint">
-                      {newGreeting.length > 0 && !isLoading && (
-                        <>
-                          <span className="char-count">{newGreeting.length}/50</span>
-                          <div className="progress-bar">
-                            <div 
-                              className="progress-fill" 
-                              style={{ width: `${(newGreeting.length / 50) * 100}%` }}
-                            ></div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      if (newGreeting.trim()) {
-                        updateGreeting(newGreeting);
-                      }
-                    }}
-                    className={`primary-btn ${isLoading ? 'disabled-btn' : ''} ${!newGreeting.trim() ? 'disabled-btn' : ''}`}
-                  >
-                    {isLoading ? (
-                      <>
-                        <div className="button-spinner"></div>
-                        Updating...
-                      </>
-                    ) : (
-                      'Update Greeting'
-                    )}
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
+          <div className="greeting-section">
+            <p className="current-greeting">
+              Current Greeting: {greeting}
+            </p>
+          </div>
+
+          <div className="update-section">
+            <input
+              type="text"
+              placeholder="Enter new greeting..."
+              className="greeting-input"
+              value={input}
+              onChange={handleInputChange}
+              disabled={loading}
+            />
+            <button
+              onClick={handleUpdate}
+              disabled={loading || !input.trim()}
+              className="update-btn"
+            >
+              {loading ? 'Updating...' : 'Update Greeting'}
+            </button>
+          </div>
         </div>
       )}
     </div>
