@@ -14,7 +14,7 @@ export default defineConfig({
       '@': '/src',
     },
   },
-  base: "/React-Dapp",
+  base: "/",
   assetsInclude: ['**/*.json'],
   build: {
     outDir: '../dist',
