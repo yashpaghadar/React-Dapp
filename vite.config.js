@@ -14,9 +14,15 @@ export default defineConfig({
       '@': '/src',
     },
   },
+  base: "/React_Dapp",
+  assetsInclude: ['**/*.json'],
   build: {
     outDir: '../dist',
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: './src/main.jsx',
+      },
+    },
   },
-  base: './',
 });

@@ -1,14 +1,45 @@
-# React + Vite
+# React Dapp
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A decentralized application built with React and Vite.
 
-Currently, two official plugins are available:
+## Deployment Instructions
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+1. Build the application:
+```bash
+npm run build
+```
 
-## Expanding the ESLint configuration
+2. For GitHub Pages deployment:
+- Create a GitHub repository
+- Push your code to the repository
+- Go to repository settings -> Pages
+- Select "gh-pages" as the source branch
+- Your app will be live at https://<username>.github.io/<repository-name>
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+3. For Vercel deployment:
+- Install Vercel CLI: `npm i -g vercel`
+- Login to Vercel: `vercel login`
+- Deploy: `vercel`
+
+4. For Netlify deployment:
+- Install Netlify CLI: `npm i -g netlify-cli`
+- Login to Netlify: `netlify login`
+- Deploy: `netlify deploy`
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
 
 
