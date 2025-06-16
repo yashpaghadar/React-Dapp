@@ -11,3 +11,5 @@ createRoot(root).render(
     <App />
   </React.StrictMode>
 )
+
+//  npx hardhat run scripts/deploy.js --network sepolia, this command will deploy the contract for HLT tokens.

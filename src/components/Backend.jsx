@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
+import Greeter from '../contracts/Greeter.json';
+import HelloToken from '../contracts/HelloToken.json';
+import helloTokenAddressJson from '../contracts/hello-token-address.json';
+import contractAddressJson from '../contracts/contract-address.json';
 import Loading from './Loading';
 import './Backend.css';
 
@@ -15,18 +19,20 @@ const Backend = () => {
   const [networkError, setNetworkError] = useState("");
   const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
+  const [transferMessage, setTransferMessage] = useState("");
+  const [greetingMessage, setGreetingMessage] = useState("");
+  const [hltBalance, setHltBalance] = useState(null);
+  const [transferTo, setTransferTo] = useState("");
+  const [transferAmount, setTransferAmount] = useState("");
+  const [transferLoading, setTransferLoading] = useState(false);
 
-  // Contract ABI
-  const abi = [
-    'constructor(string memory _greeting)',
-    'function greet() view returns (string)',
-    'function setGreeting(string memory _greeting)',
-    'event GreetingUpdated(string _greeting)'
-  ];
+  // Greeter ABI and address
+  const abi = Greeter.abi;
+  const contractAddress = contractAddressJson.address;
 
-  // Contract address
-  const contractAddress = '0xeBc0d756a6A650b72d1e4ce0d10409EF5BAdEEae';
+  // HelloToken ABI and address
+  const helloTokenAbi = HelloToken.abi;
+  const helloTokenAddress = helloTokenAddressJson.address;
 
   // Initialize a public provider for read-only access
   const publicProvider = new ethers.providers.InfuraProvider('sepolia');
@@ -61,12 +67,13 @@ const Backend = () => {
       // Get updated greeting
       const updatedGreeting = await contract.greet();
       setGreeting(updatedGreeting);
-      setSuccessMessage("Greeting updated successfully!");
-      setTimeout(() => setSuccessMessage(""), 3000); // Clear message after 3 seconds
+      setGreetingMessage("Greeting updated successfully!");
+      setTimeout(() => setGreetingMessage(""), 5000); // Clear message after 5 seconds
       return true; // Return success
     } catch (error) {
       console.error('Error Updating Greeting:', error);
       setError(error.message);
+      setGreetingMessage("");
       return false; // Return failure
     } finally {
       setLoading(false);
@@ -150,45 +157,77 @@ const Backend = () => {
     }
   };
 
+  // Fetch HLT balance
+  const fetchHLTBalance = async (address, providerOrSigner) => {
+    try {
+      const token = new ethers.Contract(helloTokenAddress, helloTokenAbi, providerOrSigner);
+      const balance = await token.balanceOf(address);
+      const decimals = await token.decimals();
+      setHltBalance(ethers.utils.formatUnits(balance, decimals));
+    } catch (error) {
+      setHltBalance(null);
+      console.error('Error fetching HLT balance:', error);
+    }
+  };
+
+  // Handle HLT transfer
+  const handleTransfer = async (e) => {
+    e.preventDefault();
+    setTransferLoading(true);
+    setError("");
+    setTransferMessage("");
+    try {
+      if (!walletAddress) throw new Error('Wallet Not Connected');
+      if (!transferTo || !transferAmount) throw new Error('Recipient and amount required');
+      // Get signer from MetaMask
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      // Use HelloToken contract for transfer
+      const token = new ethers.Contract(helloTokenAddress, helloTokenAbi, signer);
+      const decimals = await token.decimals();
+      const amount = ethers.utils.parseUnits(transferAmount, decimals);
+      const tx = await token.transfer(transferTo, amount);
+      await tx.wait();
+      setTransferMessage('Transfer successful!');
+      setTimeout(() => setTransferMessage(""), 5000); // Clear after 5 seconds
+      setTransferTo("");
+      setTransferAmount("");
+      // Refresh balance
+      fetchHLTBalance(walletAddress, signer);
+    } catch (error) {
+      setError(error.message);
+      setTransferMessage("");
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
+
   // Handle connect
   const handleConnect = async () => {
     try {
       if (!window.ethereum) {
-        setError('MetaMask Wallet Not Detected. Please Install MetaMask First.');
+        setError('MetaMask Not Installed');
         return;
       }
-
-      // Check network before connecting
-      if (!isCorrectNetwork) {
-        setError('Please Switch to Sepolia Testnet in MetaMask First.');
-        return;
-      }
-
-      // Request accounts
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      });
-      
-      if (accounts.length > 0) {
-        setWalletAddress(accounts[0]);
-        setIsConnected(true);
-        setError("");
-        setIsReadOnly(false);
-        
-        // Initialize provider and signer
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const signer = provider.getSigner(0); // Get the first account's signer
-        
-        // Initialize contract
-        const initializedContract = await initContract(signer);
-        setContract(initializedContract);
-      }
+      setLoading(true);
+      setError("");
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const accounts = await provider.send('eth_requestAccounts', []);
+      const address = accounts[0];
+      setWalletAddress(address);
+      setIsConnected(true);
+      setIsReadOnly(false);
+      setLoading(false);
+      // Initialize contract with signer
+      const signer = provider.getSigner();
+      const initializedContract = await initContract(signer);
+      setContract(initializedContract);
+      // Fetch HLT balance
+      fetchHLTBalance(address, signer);
     } catch (error) {
-      if (error.code === 4001) {
-        setError('You denied the connection request. Please try again.');
-      } else {
-        setError(error.message || 'Error connecting wallet');
-      }
+      setLoading(false);
+      setError(error.message);
     }
   };
 
@@ -268,8 +307,8 @@ const Backend = () => {
         // Fetch initial greeting
         await fetchLatestGreeting();
 
-        // Set up periodic refresh (every 30 seconds)
-        const refreshInterval = setInterval(fetchLatestGreeting, 30000);
+        // Set up periodic refresh (every 20 seconds)
+        const refreshInterval = setInterval(fetchLatestGreeting, 20000);
 
         // Cleanup interval on unmount
         return () => {
@@ -320,11 +359,24 @@ const Backend = () => {
     };
   }, []); // Empty dependency array to run only once on mount
 
+  useEffect(() => {
+    checkMetaMask();
+    // Always show greeting in read-only mode if not connected
+    if (!isConnected) {
+      fetchGreetingReadOnly();
+    }
+  }, [isConnected]);
+
+  if (transferLoading || loading) {
+    return (
+      <div className="backend-container">
+        <Loading message="Transaction in progress..." />
+      </div>
+    );
+  }
+
   return (
     <div className="backend-container">
-      {loading && <Loading />}
-      
-      {/* Network Error Message */}
       {networkError && (
         <div className="network-error">
           <div className="error-icon">⚠️</div>
@@ -368,6 +420,44 @@ const Backend = () => {
       
       {isConnected || isReadOnly ? (
         <div className="content">
+          {isConnected && (
+            <>
+              <div className="token-section">
+                <h2>Your HLT Balance:</h2>
+                <p>{hltBalance !== null ? hltBalance : "-"} HLT</p>
+              </div>
+              <div className="transfer-section">
+                <h2>Transfer HLT</h2>
+                <div className="input-section">
+                  <form onSubmit={handleTransfer} style={{display: 'flex', gap: '0.7rem', alignItems: 'center', marginBottom: 0}}>
+                    <input
+                      type="text"
+                      placeholder="Recipient Address"
+                      value={transferTo}
+                      onChange={e => setTransferTo(e.target.value)}
+                      disabled={transferLoading}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Amount"
+                      value={transferAmount}
+                      onChange={e => setTransferAmount(e.target.value)}
+                      disabled={transferLoading}
+                      min="0"
+                      step="any"
+                    />
+                    <button
+                      type="submit"
+                      disabled={transferLoading || !transferTo || !transferAmount}
+                    >
+                      {transferLoading ? 'Transferring...' : 'Send'}
+                    </button>
+                  </form>
+                </div>
+                {transferMessage && <div className="success-message">{transferMessage}</div>}
+              </div>
+            </>
+          )}
           <div className="greeting-section">
             <h2>Current Greeting:</h2>
             <p>{greeting}</p>
@@ -381,9 +471,9 @@ const Backend = () => {
               </div>
             </div>
           )}
-          {successMessage && (
+          {greetingMessage && (
             <div className="success-message">
-              {successMessage}
+              {greetingMessage}
             </div>
           )}
           {!isReadOnly && (
