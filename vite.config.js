@@ -14,15 +14,20 @@ export default defineConfig({
       '@': '/src',
     },
   },
-  base: "/",
-  assetsInclude: ['**/*.json'],
+  base: './',
   build: {
-    outDir: '../dist',
+    outDir: './dist',
     emptyOutDir: true,
     rollupOptions: {
       input: {
         main: './src/main.jsx',
       },
     },
+  },
+  preview: {
+    port: 4173,
+    strictPort: true,
+    open: true,
+    dir: './dist'
   },
 });
