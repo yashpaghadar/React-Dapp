@@ -27,6 +27,15 @@ body {
   gap: 0.5rem;
 }
 
+.nft-box {
+  margin-top: 2.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: #f8fafc;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(60,60,120,0.07);
+}
+
 .read-only-mode {
   text-align: center;
   padding: 1rem;
@@ -268,7 +277,7 @@ body {
 
 
 .greeting-section {
-  background: linear-gradient(90deg, #fceabb 0%, #dea50a 100%);
+  background: linear-gradient(90deg, #fceabb 0%, #ffcb3c 100%);
   border-radius: 12px;
   padding: 1.5rem 1.5rem 1.2rem 1.5rem;
   box-shadow: 0 2px 8px rgba(60, 60, 120, 0.07);
@@ -358,6 +367,8 @@ body {
   }
   .input-section input[type="text"],
   .input-section input[type="number"],
+  .input-section input[type="password"],
+  .input-section textarea,
   .input-section button {
     width: 100%;
     max-width: 100%;
@@ -372,15 +383,138 @@ h2 {
 }
 
 input {
+  padding: 12px 16px;
+  border: 2px  solid #b2bec3;
+  border-radius: 6px;
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  font-size: 16px;
+  outline: none;
   margin-bottom: 1rem;
-  font-size: 1rem;
+  transition: border-color 0.3s;
 }
+
+input:focus {
+  border-color: #4caf50;
+}
+
 
 input:disabled {
   background-color: #f5f5f5;
   cursor: not-allowed;
+}
+
+/* NFT Dashboard Styles */
+.mint-nft-btn {
+  font-size: 1rem;
+  font-weight: 600;
+  background: linear-gradient(90deg, #00b894 0%, #6c5ce7 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem 2rem;
+  margin-bottom: 0.7rem;
+  cursor: pointer;
+  box-shadow: 0 1px 6px rgba(60,60,120,0.08);
+  transition: background 0.22s, transform 0.13s;
+}
+.mint-nft-btn:disabled {
+  background: #b2bec3;
+  cursor: not-allowed;
+}
+.mint-nft-btn:hover:not(:disabled), .mint-nft-btn:focus:not(:disabled) {
+  background: linear-gradient(90deg, #6c5ce7 0%, #00b894 100%);
+  transform: translateY(-2px) scale(1.03);
+  outline: none;
+}
+
+.nft-dashboard {
+  margin-top: 2.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: #afd7ff;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(60,60,120,0.07);
+}
+
+.nft-dashboard-header {
+  margin-bottom: 1.2rem;
+}
+
+.nft-dashboard-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: #6c5ce7;
+}
+
+.unlocked-section {
+  margin-top: 1.5rem;
+}
+
+.nft-list {
+  display: flex;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.nft-card {
+  width: 170px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.09);
+  padding: 0.7rem;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.nft-token-id {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: #00b894;
+}
+
+.nft-contract {
+  font-size: 0.8em;
+  color: #6c5ce7;
+  margin-bottom: 0.2em;
+}
+
+.nft-image {
+  width: 100%;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  max-height: 110px;
+  object-fit: cover;
+}
+
+.nft-no-image {
+  height: 110px;
+  background: #eee;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+}
+
+.nft-name {
+  font-size: 1em;
+  font-weight: 500;
+  color: #333;
+}
+
+.nft-tokenuri {
+  font-size: 0.75em;
+  color: #888;
+  word-break: break-all;
+  margin-top: 0.2em;
+}
+
+.nft-error {
+  color: red;
+  font-size: 0.85em;
+  margin-top: 0.4em;
 }

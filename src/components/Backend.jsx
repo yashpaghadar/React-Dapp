@@ -1,13 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
+// // import { PinataFDK } from 'pinata-web3'; // REMOVED: Use REST API with fetch // REMOVED: Use REST API with fetch
 import Greeter from '../contracts/Greeter.json';
 import HelloToken from '../contracts/HelloToken.json';
 import helloTokenAddressJson from '../contracts/hello-token-address.json';
 import contractAddressJson from '../contracts/contract-address.json';
+import HelloNFT from '../contracts/HelloNFT.json';
+import helloNFTAddressJson from '../contracts/hello-nft-address.json';
+
+// Helper to get all NFT contract addresses from the JSON
+const getHelloNFTAddresses = () => {
+  return Object.values(helloNFTAddressJson).filter(
+    (addr) => typeof addr === 'string' && addr.startsWith('0x')
+  );
+};
 import Loading from './Loading';
 import './Backend.css';
 
 const Backend = () => {
+  // NFT Mint Form State
+  const [nftImage, setNftImage] = useState(null);
+  const [nftName, setNftName] = useState("");
+  const [nftDescription, setNftDescription] = useState("");
+  // Pinata JWT (never expose secret keys in frontend for production!)
+  const [pinataJWT, setPinataJWT] = useState("");
+  const [ipfsUploading, setIpfsUploading] = useState(false);
+  const [ipfsError, setIpfsError] = useState("");
+  // NFT Dashboard State
+  const [nftIds, setNftIds] = useState([]); // List of owned tokenIds
+  const [nftMeta, setNftMeta] = useState([]); // Metadata for owned NFTs
+  const [nftLoading, setNftLoading] = useState(false);
+  const [nftError, setNftError] = useState("");
+  // ...existing state
+  const [minting, setMinting] = useState(false);
+  const [minted, setMinted] = useState(false);
+  const [mintMessage, setMintMessage] = useState("");
+  const [mintError, setMintError] = useState("");
+  const [mintSuccess, setMintSuccess] = useState("");
+  const [lastMintedMetadata, setLastMintedMetadata] = useState(null); // { metadataURI, imageURI }
   const [walletAddress, setWalletAddress] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState("");
@@ -26,6 +56,24 @@ const Backend = () => {
   const [transferAmount, setTransferAmount] = useState("");
   const [transferLoading, setTransferLoading] = useState(false);
 
+  // Watch for wallet/network changes to refresh NFTs
+  useEffect(() => {
+    if (isConnected && isCorrectNetwork && walletAddress) {
+      // Use window.ethereum or provider from ethers
+      let provider;
+      if (window.ethereum) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+      } else {
+        provider = ethers.getDefaultProvider();
+      }
+      fetchHelloNFTs(walletAddress, provider);
+    } else {
+      setNftIds([]);
+      setNftMeta([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletAddress, isConnected, isCorrectNetwork]);
+
   // Greeter ABI and address
   const abi = Greeter.abi;
   const contractAddress = contractAddressJson.address;
@@ -33,6 +81,205 @@ const Backend = () => {
   // HelloToken ABI and address
   const helloTokenAbi = HelloToken.abi;
   const helloTokenAddress = helloTokenAddressJson.address;
+
+  // HelloNFT ABI
+  const helloNFTAbi = HelloNFT.abi;
+  // All HelloNFT contract addresses
+  const helloNFTAddresses = getHelloNFTAddresses();
+
+  // Pick the first NFT contract for minting (demo)
+  const mintNFTContract = helloNFTAddresses[0];
+
+  /**
+   * Mint a HelloNFT to the connected user, uploading image and metadata to IPFS
+   */
+  const mintNFT = async () => {
+    setMinting(true);
+    setMintError("");
+    setMintSuccess("");
+    setIpfsError("");
+    setIpfsUploading(true);
+    try {
+      if (!window.ethereum || !walletAddress) throw new Error("Wallet not connected");
+      if (!mintNFTContract) throw new Error("No NFT contract available");
+      if (!nftImage) throw new Error("Please select an image for your NFT.");
+      if (!nftName.trim()) throw new Error("Please enter a name for your NFT.");
+      if (!pinataJWT.trim()) throw new Error("Please enter your Pinata JWT.");
+
+      // 1. Upload image to IPFS via Pinata REST API
+      setIpfsUploading(true);
+      const imageFile = nftImage;
+      const formData = new FormData();
+      formData.append('file', imageFile);
+      const imageRes = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${pinataJWT.trim()}` },
+        body: formData
+      });
+      if (!imageRes.ok) throw new Error('Failed to upload image to Pinata');
+      const imageResult = await imageRes.json();
+      const imageCid = imageResult.IpfsHash;
+      const imageIpfsUrl = `ipfs://${imageCid}`;
+
+      // 2. Create metadata.json and upload to Pinata
+      const metadata = {
+        name: nftName,
+        description: nftDescription,
+        image: imageIpfsUrl
+      };
+      const metadataRes = await fetch('https://api.pinata.cloud/pinning/pinJSONToIPFS', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${pinataJWT.trim()}`
+        },
+        body: JSON.stringify(metadata)
+      });
+      if (!metadataRes.ok) throw new Error('Failed to upload metadata to Pinata');
+      const metadataResult = await metadataRes.json();
+      const metadataCid = metadataResult.IpfsHash;
+      const tokenURI = `ipfs://${metadataCid}`;
+
+      setIpfsUploading(false);
+
+      // 4. Mint NFT with tokenURI
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const nftContract = new ethers.Contract(mintNFTContract, helloNFTAbi, signer);
+      const tx = await nftContract.mintNFT(walletAddress, tokenURI);
+      await tx.wait();
+      setLastMintedMetadata({
+        metadataURI: tokenURI,
+        imageURI: imageIpfsUrl
+      });
+      setMintSuccess(`NFT minted successfully! It may take a few seconds to appear. \nMetadata: https://gateway.pinata.cloud/ipfs/${metadataCid} \nImage: https://gateway.pinata.cloud/ipfs/${imageCid}`);
+setTimeout(() => setMintSuccess(""), 5000);
+      // Refresh NFT list
+      fetchHelloNFTs(walletAddress, signer);
+    } catch (err) {
+      setIpfsUploading(false);
+      // Special handling for Ownable error
+      const errMsg = err.reason || err.message || "Mint failed";
+      if (errMsg.includes("Ownable: caller is not the owner")) {
+        setMintError("execution reverted: Ownable: caller is not the owner");
+        setTimeout(() => setMintError(""), 5000);
+      } else if (errMsg.toLowerCase().includes('web3storage')) {
+        setIpfsError(errMsg);
+      } else {
+        setMintError(errMsg);
+      }
+    } finally {
+      setMinting(false);
+      setIpfsUploading(false);
+    }
+  };
+
+  /**
+   * Fetch all HelloNFTs owned by the user from all contracts
+   * @param {string} address - user's wallet address
+   * @param {ethers.Signer|ethers.Provider} providerOrSigner
+   */
+  const fetchHelloNFTs = async (address, providerOrSigner) => {
+    setNftLoading(true);
+    setNftError("");
+    setNftIds([]);
+    setNftMeta([]);
+    try {
+      if (!address || !ethers.utils.isAddress(address)) {
+        setNftLoading(false);
+        return;
+      }
+      let allIds = [];
+      let allMeta = [];
+      let errors = [];
+      for (const contractAddr of helloNFTAddresses) {
+        try {
+          const nftContract = new ethers.Contract(contractAddr, helloNFTAbi, providerOrSigner);
+          const balance = await nftContract.balanceOf(address);
+          for (let i = 0; i < balance; i++) {
+            const tokenId = await nftContract.tokenOfOwnerByIndex(address, i);
+            allIds.push(tokenId.toString());
+            // Fetch tokenURI and metadata
+            try {
+              const tokenURI = await nftContract.tokenURI(tokenId);
+              let metadata = { tokenId: tokenId.toString(), tokenURI, contract: contractAddr };
+              if (tokenURI) {
+                let url = tokenURI;
+                if (url.startsWith('ipfs://')) {
+                  url = url.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                }
+                let fetchError = null;
+                let res = null;
+                try {
+                  res = await fetch(url);
+                  if (res.ok) {
+                    const meta = await res.json();
+                    metadata = { ...metadata, ...meta };
+                  } else {
+                    fetchError = `HTTP ${res.status} ${res.statusText}`;
+                  }
+                } catch (fetchEx) {
+                  fetchError = fetchEx.message;
+                }
+                if (fetchError) {
+                  metadata.error = `Failed to load metadata from ${url}: ${fetchError}`;
+                }
+              }
+              allMeta.push(metadata);
+            } catch (metaErr) {
+              allMeta.push({ tokenId: tokenId.toString(), contract: contractAddr, error: `Failed to load metadata: ${metaErr.message}` });
+            }
+          }
+        } catch (err) {
+          errors.push(`Error with contract ${contractAddr}: ${err.reason || err.message}`);
+        }
+      }
+      setNftIds(allIds);
+      setNftMeta(allMeta);
+      if (errors.length > 0) setNftError(errors.join('; '));
+    } catch (error) {
+      setNftError("Error fetching NFTs: " + (error.reason || error.message));
+      setNftIds([]);
+      setNftMeta([]);
+    } finally {
+      setNftLoading(false);
+    }
+  };
+
+  // Mint HLT faucet function
+  const mintHLT = async () => {
+    if (!walletAddress) return;
+    setMinting(true);
+    setMintMessage("");
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const token = new ethers.Contract(helloTokenAddress, helloTokenAbi, signer);
+      // Mint 10 HLT (assume 18 decimals)
+      const decimals = await token.decimals();
+      const amount = ethers.utils.parseUnits("10", decimals);
+      const tx = await token.mint(walletAddress, amount);
+      await tx.wait();
+      setMintMessage("Successfully minted 10 HLT!");
+      setMinted(true);
+      // Hide mint message after 5 seconds
+      setTimeout(() => setMintMessage("") , 5000);
+      // Allow remint after 15 seconds
+      setTimeout(() => setMinted(false), 15000);
+      // Refresh balance
+      fetchHLTBalance(walletAddress, signer);
+    } catch (error) {
+      if (error.code === 4001) {
+        setMintMessage("User rejected transaction");
+        if (window._mintMsgTimeout) clearTimeout(window._mintMsgTimeout);
+        window._mintMsgTimeout = setTimeout(() => setMintMessage(""), 5000);
+      } else {
+        setMintMessage(error.reason || error.message || "Mint failed");
+      }
+    } finally {
+      setMinting(false);
+    }
+  };
 
   // Initialize a public provider for read-only access
   const publicProvider = new ethers.providers.InfuraProvider('sepolia');
@@ -50,31 +297,49 @@ const Backend = () => {
     }
   };
 
-  // Update greeting
+  // Update greeting with ERC20 approval flow
   const updateGreeting = async (newGreeting) => {
     try {
       if (!contract) {
         throw new Error('Contract Not Initialized');
       }
-
       setLoading(true);
       setError('');
+      setGreetingMessage('');
 
-      // Update greeting
+      // Prepare for ERC20 approval
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const token = new ethers.Contract(helloTokenAddress, helloTokenAbi, signer);
+      const decimals = await token.decimals();
+      const amount = ethers.utils.parseUnits("10", decimals);
+      const allowance = await token.allowance(walletAddress, contractAddress);
+
+      // If not enough allowance, approve first
+      if (allowance.lt(amount)) {
+        setGreetingMessage('Approving 10 HLT for greeting update...');
+        const approveTx = await token.approve(contractAddress, amount);
+        await approveTx.wait();
+        setGreetingMessage('Approval successful! Updating greeting...');
+      }
+
+      // Now call setGreeting
       const tx = await contract.setGreeting(newGreeting);
-      await tx.wait(); // Wait for transaction to be mined
+      await tx.wait();
 
-      // Get updated greeting
+      // Success
       const updatedGreeting = await contract.greet();
       setGreeting(updatedGreeting);
+      // Refresh HLT balance
+      fetchHLTBalance(walletAddress, signer);
       setGreetingMessage("Greeting updated successfully!");
-      setTimeout(() => setGreetingMessage(""), 5000); // Clear message after 5 seconds
-      return true; // Return success
+      setTimeout(() => setGreetingMessage(""), 5000);
+      return true;
     } catch (error) {
       console.error('Error Updating Greeting:', error);
-      setError(error.message);
+      setError(error.reason || error.message || "Failed to update greeting");
       setGreetingMessage("");
-      return false; // Return failure
+      return false;
     } finally {
       setLoading(false);
     }
@@ -205,7 +470,19 @@ const Backend = () => {
 
   // Handle connect
   const handleConnect = async () => {
+    // ...existing logic...
+    // After connecting wallet, fetch NFTs
     try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      await fetchHelloNFTs(walletAddress, signer);
+    } catch (e) {
+      setNftError("Could not fetch NFTs after connection.");
+    }
+  
+    try {
+      // Reset logic on connect (removed canMint/mintTimer logic)
+
       if (!window.ethereum) {
         setError('MetaMask Not Installed');
         return;
@@ -233,6 +510,8 @@ const Backend = () => {
 
   // Handle disconnect
   const handleDisconnect = () => {
+    setNftIds([]);
+    setNftError("");
     setIsConnected(false);
     setWalletAddress("");
     setContract(null);
@@ -377,6 +656,7 @@ const Backend = () => {
 
   return (
     <div className="backend-container">
+
       {networkError && (
         <div className="network-error">
           <div className="error-icon">⚠️</div>
@@ -417,101 +697,222 @@ const Backend = () => {
           </div>
         )}
       </div>
-      
-      {isConnected || isReadOnly ? (
-        <div className="content">
-          {isConnected && (
-            <>
-              <div className="token-section">
-                <h2>Your HLT Balance:</h2>
-                <p>{hltBalance !== null ? hltBalance : "-"} HLT</p>
-              </div>
-              <div className="transfer-section">
-                <h2>Transfer HLT</h2>
-                <div className="input-section">
-                  <form onSubmit={handleTransfer} style={{display: 'flex', gap: '0.7rem', alignItems: 'center', marginBottom: 0}}>
-                    <input
-                      type="text"
-                      placeholder="Recipient Address"
-                      value={transferTo}
-                      onChange={e => setTransferTo(e.target.value)}
-                      disabled={transferLoading}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Amount"
-                      value={transferAmount}
-                      onChange={e => setTransferAmount(e.target.value)}
-                      disabled={transferLoading}
-                      min="0"
-                      step="any"
-                    />
-                    <button
-                      type="submit"
-                      disabled={transferLoading || !transferTo || !transferAmount}
-                    >
-                      {transferLoading ? 'Transferring...' : 'Send'}
-                    </button>
-                  </form>
-                </div>
-                {transferMessage && <div className="success-message">{transferMessage}</div>}
-              </div>
-            </>
-          )}
-          <div className="greeting-section">
-            <h2>Current Greeting:</h2>
-            <p>{greeting}</p>
-          </div>
-          {isReadOnly && (
-            <div className="read-only-warning">
-              <div className="warning-icon">ℹ️</div>
-              <div className="warning-text">
-                <p>You Are In Read-Only Mode.</p>
-                <p>Connect MetaMask to Update the Greeting.</p>
-              </div>
+
+      {isConnected && isCorrectNetwork && (
+        <div className="token-section">
+          <h2>|| Your HLT Balance ||</h2>
+          <p>{hltBalance !== null ? hltBalance : "-"} HLT {parseFloat(hltBalance) >= 1 ? <span className="badge eligible">Eligible</span> : <span className="badge not-eligible">Not Eligible</span>}</p>
+          <button
+            className="update-btn"
+            onClick={mintHLT}
+            disabled={minting || minted}
+            style={{marginTop: '0.5rem', marginBottom: '1.5rem'}}
+          >
+            {minting
+              ? 'Minting...'
+              : minted
+              ? 'Already Minted'
+              : 'Mint 10 HLT (Faucet)'}
+          </button>
+          {mintMessage && (
+            <div className="success-message" style={{marginTop: '-1.1rem', marginBottom: '2.5rem'}}>
+              {mintMessage}
             </div>
           )}
-          {greetingMessage && (
-            <div className="success-message">
-              {greetingMessage}
-            </div>
-          )}
-          {!isReadOnly && (
-            <div className="input-section">
-              <input
-                type="text"
-                value={input}
-                onChange={handleInputChange}
-                placeholder="Enter new greeting..."
-                disabled={loading}
-              />
-              <button
-                onClick={handleUpdate}
-                disabled={loading || !input.trim()}
-                className="update-btn"
-              >
-                Update Greeting
-              </button>
-            </div>
+
+          {/* Token Transfer Section - moved here under balance */}
+          <form className="input-section" style={{marginTop: '2rem'}} onSubmit={e => { e.preventDefault(); handleTransfer(e); }}>
+            <input
+              type="text"
+              placeholder="Recipient Address"
+              value={transferTo}
+              onChange={e => setTransferTo(e.target.value)}
+              disabled={transferLoading}
+              maxLength={42}
+            />
+            <input
+              type="number"
+              placeholder="Amount"
+              value={transferAmount}
+              onChange={e => setTransferAmount(e.target.value)}
+              disabled={transferLoading}
+              min={0}
+              step={1}
+            />
+            <button
+              type="submit"
+              className="update-btn"
+              disabled={transferLoading || !transferTo.trim() || !transferAmount}
+            >
+              Send HLT
+            </button>
+          </form>
+          {transferMessage && (
+            <div className="success-message">{transferMessage}</div>
           )}
         </div>
-      ) : (
-        <div className="content">
-          <div className="greeting-section">
-            <h2>Current Greeting:</h2>
-            <p>{greeting}</p>
-          </div>
-         <div className="read-only-warning">
-          <div className="warning-icon">ℹ️</div>
+      )}
+
+      {/* Greeting and Read-Only Section */}
+      <div className="content">
+        <div className="greeting-section">
+          <h2>|| Current Greeting ||</h2>
+          <p>{greeting}</p>
+        </div>
+
+        {/* Greeting Update Section */}
+        {isConnected && isCorrectNetwork && (
+          <form className="input-section" onSubmit={e => { e.preventDefault(); handleUpdate(); }}>
+            <input
+              type="text"
+              placeholder="Enter new greeting"
+              value={input}
+              onChange={handleInputChange}
+              disabled={loading}
+              className="greeting-input"
+              maxLength={64}
+            />
+            <button
+              type="submit"
+              className="update-btn"
+              disabled={loading || !input.trim()}
+            >
+              Update Greeting
+            </button>
+          </form>
+        )}
+        {greetingMessage && (
+          <div className="success-message">{greetingMessage}</div>
+        )}
+
+        {/* NFT Section: Only show if connected and on correct network */}
+        {isConnected && isCorrectNetwork && (
+          <section className="nft-dashboard">
+            <header className="nft-dashboard-header">
+              <h2 className="nft-dashboard-title">|| Your HelloNFT Collection ||</h2>
+            </header>
+            {/* NFT Mint Form */}
+            <form
+              className="nft-mint-form"
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1.2rem', gap: '0.5rem' }}
+              onSubmit={e => { e.preventDefault(); mintNFT(); }}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                onChange={e => setNftImage(e.target.files[0])}
+                required
+                disabled={minting || ipfsUploading}
+                style={{ marginBottom: '0.5em' }}
+              />
+              <input
+                type="text"
+                placeholder="NFT Name"
+                value={nftName}
+                onChange={e => setNftName(e.target.value)}
+                required
+                disabled={minting || ipfsUploading}
+                style={{ marginBottom: '0.5em' }}
+              />
+              <input
+                type="text"
+                placeholder="NFT Description (optional)"
+                value={nftDescription}
+                onChange={e => setNftDescription(e.target.value)}
+                disabled={minting || ipfsUploading}
+                style={{ marginBottom: '0.5em' }}
+              />
+              <input
+                type="password"
+                placeholder="Pinata JWT (see Pinata dashboard)"
+                value={pinataJWT}
+                onChange={e => setPinataJWT(e.target.value)}
+                required
+                disabled={minting || ipfsUploading}
+                style={{ marginBottom: '0.5em' }}
+              />
+              <button className="mint-nft-btn" type="submit" disabled={minting || ipfsUploading}>
+                {minting ? (ipfsUploading ? 'Uploading to IPFS...' : 'Minting...') : 'Mint HelloNFT'}
+              </button>
+              {ipfsError && <div className="error-message" style={{marginTop: '0.6em'}}>{ipfsError}</div>}
+              {mintError && (
+                <div className="error-message" style={{marginTop: '0.6em'}}>{mintError}</div>
+              )}
+              {mintSuccess && (
+                <div className="success-message" style={{marginTop: '0.6em'}}>
+                  {mintSuccess}
+                  {lastMintedMetadata && (
+                    <div style={{marginTop: '0.8em', fontSize: '0.98em'}}>
+                      <div>
+                        <strong>Metadata:</strong> <a href={`https://gateway.pinata.cloud/ipfs/${lastMintedMetadata.metadataURI.replace('ipfs://', '')}`} target="_blank" rel="noopener noreferrer">View on Pinata</a>
+                      </div>
+                      <div>
+                        <strong>Image:</strong> <a href={`https://gateway.pinata.cloud/ipfs/${lastMintedMetadata.imageURI.replace('ipfs://', '')}`} target="_blank" rel="noopener noreferrer">View on Pinata</a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </form>
+            {nftLoading ? (
+              <div className="loading-container"><div className="loading-spinner"></div>Loading Your Data...</div>
+            ) : nftError ? (
+              <div className="error-message">{nftError}</div>
+            ) : nftIds.length > 0 ? (
+              <>
+                <div className="nft-list">
+                      {nftMeta.map(nft => (
+                        <div key={nft.tokenId + '-' + (nft.contract || '')} className="nft-card">
+                          <div className="nft-token-id">#{nft.tokenId}</div>
+                          <div className="nft-contract">Contract: {nft.contract && (nft.contract.slice(0, 6) + '...' + nft.contract.slice(-4))}</div>
+                          {nft.image ? (
+                            <img className="nft-image" src={nft.image.startsWith('ipfs://') ? nft.image.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/') : nft.image} alt={nft.name || 'NFT'} />
+                          ) : (
+                            <div className="nft-no-image">No Image</div>
+                          )}
+                          <div className="nft-name">{nft.name || 'Unnamed NFT'}</div>
+                          {nft.tokenURI && (
+                            <div className="nft-tokenuri">
+                              <strong>TokenURI:</strong> <a href={`https://gateway.pinata.cloud/ipfs/${nft.tokenURI.replace('ipfs://', '')}`} target="_blank" rel="noopener noreferrer">{nft.tokenURI}</a>
+                            </div>
+                          )}
+                          {nft.error && <div className="nft-error">{nft.error}</div>}
+                        </div>
+                      ))}
+                    </div>
+                {/* Gated content: Only visible to HelloNFT holders */}
+                <div className="unlocked-section gated-content">
+                  <div className="success-message" style={{fontSize: '1.15em', marginBottom: '1em'}}>🎉 NFT Holder Exclusive Area 🎉</div>
+                  <div className="secret-message" style={{background: '#e3fcec', color: '#256029', padding: '1em', borderRadius: '8px', marginBottom: '1em'}}>
+                    <strong>Secret Message:</strong> Welcome, NFT Holder! You have unlocked premium features.
+                  </div>
+                  <button className="special-action-btn" style={{background: '#6c63ff', color: '#fff', padding: '0.7em 1.5em', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', marginBottom: '1em'}} onClick={() => alert('!!You accessed a holder-only action !!')}>
+                    Holder-Only Action
+                  </button>
+                  {/* Add more exclusive features/components here as needed */}
+                </div>
+              </>
+            ) : (
+              <div style={{textAlign: 'center', padding: '1.5rem 0'}}>
+                <div className="access-warning" style={{color: '#c62828', fontWeight: 500, fontSize: '1.08em'}}>You do not own any HelloNFTs with this wallet.<br/>Mint or acquire one to unlock exclusive features!</div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {(!isConnected || !isCorrectNetwork) && (
+          <div className="read-only-warning">
+            <div className="warning-icon">ℹ️</div>
             <div className="warning-text">
               <p>You Are In Read-Only Mode.</p>
               <p>Connect MetaMask to Update the Greeting.</p>
             </div>
-          </div> 
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
-};
+}
 
 export default Backend;
+

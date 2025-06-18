@@ -1,0 +1,118 @@
+.gallery-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2.5em 1.5em;
+}
+.gallery-title {
+  font-size: 2.2em;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 1.5em;
+  color: #3d3d3d;
+}
+.gallery-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2em;
+}
+
+.gallery-card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 16px 0 rgba(60,60,60,0.07);
+  padding: 1.2em 1em 1.4em 1em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: box-shadow 0.15s;
+  border: 1.5px solid #ececec;
+}
+.gallery-card:hover {
+  box-shadow: 0 4px 32px 0 rgba(60,60,60,0.13);
+  border-color: #b8b8ff;
+}
+.nft-token-id {
+  font-weight: 600;
+  font-size: 1.08em;
+  color: #6c63ff;
+  margin-bottom: 0.3em;
+}
+.nft-contract {
+  font-size: 0.92em;
+  color: #888;
+  margin-bottom: 0.5em;
+}
+.gallery-card .nft-image-box {
+  width: 100%;
+  aspect-ratio: 1/1;
+  background: #f5f5f5;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 0.7em;
+  border: 2px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gallery-card .nft-image-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.nft-no-image {
+  width: 100%;
+  aspect-ratio: 1/1;
+  background: #f5f5f5;
+  border-radius: 10px;
+  border: 2px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.7em;
+  color: #aaa;
+  font-size: 1.1em;
+}
+.nft-name {
+  font-weight: 600;
+  font-size: 1.08em;
+  margin-bottom: 0.2em;
+  color: #232323;
+}
+.nft-desc {
+  font-size: 0.98em;
+  color: #444;
+  margin-bottom: 0.6em;
+  text-align: center;
+}
+.nft-owner {
+  font-size: 0.92em;
+  color: #256029;
+  background: #e3fcec;
+  border-radius: 6px;
+  padding: 0.3em 0.7em;
+  margin-bottom: 0.3em;
+  margin-top: 0.2em;
+  word-break: break-all;
+}
+.nft-error {
+  color: #c62828;
+  font-size: 0.95em;
+  margin-top: 0.4em;
+  text-align: center;
+}
+.loading-container {
+  text-align: center;
+  color: #6c63ff;
+  font-size: 1.15em;
+  margin-bottom: 2em;
+}
+.error-message {
+  color: #c62828;
+  background: #fff3f3;
+  border: 1px solid #ffcdd2;
+  padding: 0.7em 1em;
+  border-radius: 8px;
+  margin-bottom: 1.2em;
+  text-align: center;
+}
