@@ -36,7 +36,7 @@ HelloNFT is a decentralized application (dApp) that allows users to mint NFTs, s
 
 ## Installation
 1. Clone the repository:
-git clone https://github.com/yashpaghadars/react-dapp.git
+git clone https://github.com/yashpaghadar/React-Dapp
 2. Install dependencies:
 npm install
 
