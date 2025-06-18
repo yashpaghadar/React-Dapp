@@ -5,11 +5,12 @@ A decentralized application built with React and Vite.
 # HelloNFT: A Full-Stack NFT Minting dApp
 HelloNFT is a decentralized application (dApp) that allows users to mint NFTs, store metadata on IPFS, and gate content based on NFT ownership.Built with React, Vite, Hardhat, and deployed on Vercel.
 
-# 🚀 Live Demo
-Frontend: https://react-hgo7beagt-yashpaghadars-projects.vercel.app/ Network: Sepolia Testnet
-Smart Contract: [View on Etherscan] https://sepolia.etherscan.io/
+## 🚀 Live Demo
+- Frontend: https://react-hgo7beagt-yashpaghadars-projects.vercel.app/ 
+- Network: Sepolia Testnet
+- Smart Contract: [View on Etherscan] https://sepolia.etherscan.io/
 
-# ✨ Features
+## ✨ Features
 - Mint NFTs directly from the browser
 - Store NFT metadata on IPFS (via Pinata)
 - Gated content for NFT holders
@@ -18,15 +19,15 @@ Smart Contract: [View on Etherscan] https://sepolia.etherscan.io/
 - Modern, responsive UI with React and Tailwind CSS
 - ERC 20 Token Transfer
 
-# 🛠 Tech Stack
+## 🛠 Tech Stack
 - Frontend: React, Vite, Tailwind CSS
 - Smart Contracts: Solidity, Hardhat, OpenZeppelin
 - Blockchain: Ethereum (Sepolia Testnet)
 - Storage: IPFS (Pinata)
 - Deployment: Vercel
 
-# 📦 Getting Started
-## Prerequisites
+## 📦 Getting Started
+### Prerequisites
 - Node.js (v18+ recommended)
 - npm or yarn
 - MetaMask or compatible wallet (for testing)
@@ -42,10 +43,10 @@ npm install
 3. Start the local development server
 npm run dev
 
-# 📚 License
+## 📚 License
 This project is licensed under the MIT License.
 
-# 🙏 Acknowledgements
+## 🙏 Acknowledgements
 - Vite
 - React
 - Hardhat
@@ -54,6 +55,6 @@ This project is licensed under the MIT License.
 - Web3.Storage
 - Vercel
 
-# 📝 Author
-Yash Paghadars
+## 📝 Author
+Yash Paghadar
 
