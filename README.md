@@ -2,44 +2,58 @@
 
 A decentralized application built with React and Vite.
 
-## Deployment Instructions
+# HelloNFT: A Full-Stack NFT Minting dApp
+HelloNFT is a decentralized application (dApp) that allows users to mint NFTs, store metadata on IPFS, and gate content based on NFT ownership.Built with React, Vite, Hardhat, and deployed on Vercel.
 
-1. Build the application:
-```bash
-npm run build
-```
+# 🚀 Live Demo
+Frontend: https://react-hgo7beagt-yashpaghadars-projects.vercel.app/ Network: Sepolia Testnet
+Smart Contract: [View on Etherscan] https://sepolia.etherscan.io/
 
-2. For GitHub Pages deployment:
-- Create a GitHub repository
-- Push your code to the repository
-- Go to repository settings -> Pages
-- Select "gh-pages" as the source branch
-- Your app will be live at https://<username>.github.io/<repository-name>
+# ✨ Features
+- Mint NFTs directly from the browser
+- Store NFT metadata on IPFS (via Pinata)
+- Gated content for NFT holders
+- Gallery of minted NFTs
+- Connect with MetaMask or other EVM wallets
+- Modern, responsive UI with React and Tailwind CSS
+- ERC 20 Token Transfer
 
-3. For Vercel deployment:
-- Install Vercel CLI: `npm i -g vercel`
-- Login to Vercel: `vercel login`
-- Deploy: `vercel`
+# 🛠 Tech Stack
+- Frontend: React, Vite, Tailwind CSS
+- Smart Contracts: Solidity, Hardhat, OpenZeppelin
+- Blockchain: Ethereum (Sepolia Testnet)
+- Storage: IPFS (Pinata)
+- Deployment: Vercel
 
-4. For Netlify deployment:
-- Install Netlify CLI: `npm i -g netlify-cli`
-- Login to Netlify: `netlify login`
-- Deploy: `netlify deploy`
+# 📦 Getting Started
+## Prerequisites
+- Node.js (v18+ recommended)
+- npm or yarn
+- MetaMask or compatible wallet (for testing)
+- Pinata/Web3.Storage API keys (for IPFS uploads)
+- [Optional] Sepolia ETH for testing
 
-## Development
-
-```bash
-# Install dependencies
+## Installation
+1. Clone the repository:
+git clone https://github.com/yashpaghadars/react-dapp.git
+2. Install dependencies:
 npm install
 
-# Run development server
+3. Start the local development server
 npm run dev
 
-# Build for production
-npm run build
+# 📚 License
+This project is licensed under the MIT License.
 
-# Preview production build
-npm run preview
-```
+# 🙏 Acknowledgements
+- Vite
+- React
+- Hardhat
+- OpenZeppelin
+- Pinata
+- Web3.Storage
+- Vercel
 
+# 📝 Author
+Yash Paghadars
 
