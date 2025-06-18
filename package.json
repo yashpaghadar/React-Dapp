@@ -5,11 +5,16 @@
   "engines": {
     "node": ">=18.0.0"
   },
-
-  "scripts": {
-    "build": "[my-framework] build --output public"
-  }
-
+"scripts": {
+    "dev": "npx hardhat run scripts/Greeter.js --network sepolia && vite dev",
+    "build": "npm run build:contract && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "compile": "hardhat compile",
+    "deploy": "hardhat run scripts/deploy.js --network sepolia",
+    "build:contract": "node scripts/build.js",
+    "start": "vite dev"
+  },
   "dependencies": {
     "@nomicfoundation/hardhat-toolbox": "^2.0.2",
     "@openzeppelin/contracts": "^4.9.0",
