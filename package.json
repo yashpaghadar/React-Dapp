@@ -5,7 +5,7 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "scripts": {
+"scripts": {
     "dev": "npx hardhat run scripts/Greeter.js --network sepolia && vite dev",
     "build": "npm run build:contract && vite build",
     "lint": "eslint .",
