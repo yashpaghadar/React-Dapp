@@ -6,7 +6,7 @@ A decentralized application built with React and Vite.
 HelloNFT is a decentralized application (dApp) that allows users to mint NFTs, store metadata on IPFS, and gate content based on NFT ownership.Built with React, Vite, Hardhat, and deployed on Vercel.
 
 ## 🚀 Live Demo
-- Frontend: https://react-hgo7beagt-yashpaghadars-projects.vercel.app/ 
+- Frontend: https://react-dapp-with-nfts.vercel.app/ 
 - Network: Sepolia Testnet
 - Smart Contract: [View on Etherscan] https://sepolia.etherscan.io/
 
