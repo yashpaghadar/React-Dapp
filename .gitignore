@@ -7,15 +7,30 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build files
+dist/
+dist-ssr/
+build/
+.cache/
+artifacts/
+cache/
+typechain-types/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
@@ -23,7 +38,21 @@ dist-ssr
 *.sln
 *.sw?
 
-.vercel
+# Deployment
+.vercel/
+.netlify/
+
+# Hardhat
+coverage/
+coverage.json
+typechain/
+
+# Hardhat cache
+hardhat-deploy/
+.hardhat/
 
 # Local Netlify folder
-.netlify
+.netlify/
+
+# Misc
+*.local

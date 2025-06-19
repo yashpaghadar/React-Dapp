@@ -152,8 +152,8 @@ const Backend = () => {
         metadataURI: tokenURI,
         imageURI: imageIpfsUrl
       });
-      setMintSuccess(`NFT minted successfully! It may take a few seconds to appear. \nMetadata: https://gateway.pinata.cloud/ipfs/${metadataCid} \nImage: https://gateway.pinata.cloud/ipfs/${imageCid}`);
-setTimeout(() => setMintSuccess(""), 5000);
+      setMintSuccess("NFT minted successfully!");
+setTimeout(() => setMintSuccess(""), 1000);
       // Refresh NFT list
       fetchHelloNFTs(walletAddress, signer);
     } catch (err) {
@@ -297,53 +297,102 @@ setTimeout(() => setMintSuccess(""), 5000);
     }
   };
 
-  // Update greeting with ERC20 approval flow
+  // Update greeting with ERC20 approval flow (NEW)
   const updateGreeting = async (newGreeting) => {
     try {
-      if (!contract) {
-        throw new Error('Contract Not Initialized');
-      }
       setLoading(true);
-      setError('');
-      setGreetingMessage('');
+      setError("");
+      setGreetingMessage("");
 
-      // Prepare for ERC20 approval
+      // Check wallet connection
+      if (!window.ethereum || !walletAddress) {
+        setError("Wallet not connected");
+        return false;
+      }
+      // Check contract instance
+      if (!contract) {
+        setError("Contract not initialized");
+        return false;
+      }
+
+      // Get signer and re-initialize Greeter contract
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
+      const greeterWithSigner = new ethers.Contract(contractAddress, abi, signer);
       const token = new ethers.Contract(helloTokenAddress, helloTokenAbi, signer);
+
+      // Get decimals and calculate payment amount
       const decimals = await token.decimals();
       const amount = ethers.utils.parseUnits("10", decimals);
-      const allowance = await token.allowance(walletAddress, contractAddress);
+      const balance = await token.balanceOf(walletAddress);
+      let allowance = await token.allowance(walletAddress, contractAddress);
+      console.log('[updateGreeting] walletAddress:', walletAddress);
+      console.log('[updateGreeting] contractAddress:', contractAddress);
+      console.log('[updateGreeting] helloTokenAddress:', helloTokenAddress);
+      console.log('[updateGreeting] decimals:', decimals);
+      console.log('[updateGreeting] amount:', amount.toString());
+      console.log('[updateGreeting] balance:', balance.toString());
+      console.log('[updateGreeting] allowance:', allowance.toString());
 
-      // If not enough allowance, approve first
-      if (allowance.lt(amount)) {
-        setGreetingMessage('Approving 10 HLT for greeting update...');
-        const approveTx = await token.approve(contractAddress, amount);
-        await approveTx.wait();
-        setGreetingMessage('Approval successful! Updating greeting...');
+      // Check balance
+      if (balance.lt(amount)) {
+        setError(`Insufficient HLT balance (need 10 HLT, have ${ethers.utils.formatUnits(balance, decimals)})`);
+        return false;
       }
 
-      // Now call setGreeting
-      const tx = await contract.setGreeting(newGreeting);
-      await tx.wait();
+      // Approve if needed, then refresh allowance
+      if (allowance.lt(amount)) {
+        setGreetingMessage("Approving 10 HLT for greeting update...");
+        try {
+          const approveTx = await token.approve(contractAddress, amount);
+          console.log('[updateGreeting] Sent approve tx:', approveTx.hash);
+          await approveTx.wait();
+          setGreetingMessage("Approval successful! Updating greeting...");
+          // Refresh allowance after approval
+          allowance = await token.allowance(walletAddress, contractAddress);
+          console.log('[updateGreeting] allowance after approval:', allowance.toString());
+          if (allowance.lt(amount)) {
+            setError("Allowance did not update after approval. Please try again.");
+            setGreetingMessage("");
+            return false;
+          }
+        } catch (approveError) {
+          setError((approveError && (approveError.reason || approveError.message)) || JSON.stringify(approveError) || "Failed to approve HLT");
+          setGreetingMessage("");
+          console.error('[updateGreeting] Approve error:', approveError);
+          return false;
+        }
+      }
 
-      // Success
-      const updatedGreeting = await contract.greet();
-      setGreeting(updatedGreeting);
-      // Refresh HLT balance
-      fetchHLTBalance(walletAddress, signer);
-      setGreetingMessage("Greeting updated successfully!");
-      setTimeout(() => setGreetingMessage(""), 5000);
-      return true;
+      // Call setGreeting
+      try {
+        console.log('[updateGreeting] Calling setGreeting...');
+        const tx = await greeterWithSigner.setGreeting(newGreeting);
+        console.log('[updateGreeting] setGreeting tx sent:', tx.hash);
+        await tx.wait();
+        setGreetingMessage("Greeting updated successfully!");
+        setTimeout(() => setGreetingMessage(""), 5000);
+        // Refresh greeting and balance
+        const updatedGreeting = await greeterWithSigner.greet();
+        setGreeting(updatedGreeting);
+        fetchHLTBalance(walletAddress, signer);
+        return true;
+      } catch (greetError) {
+        setError((greetError && (greetError.reason || greetError.message)) || JSON.stringify(greetError) || "Failed to update greeting");
+        setGreetingMessage("");
+        console.error('[updateGreeting] setGreeting error:', greetError);
+        return false;
+      }
     } catch (error) {
-      console.error('Error Updating Greeting:', error);
-      setError(error.reason || error.message || "Failed to update greeting");
+      setError((error && (error.reason || error.message)) || JSON.stringify(error) || "Failed to update greeting");
       setGreetingMessage("");
+      console.error('[updateGreeting] General error:', error);
       return false;
     } finally {
       setLoading(false);
     }
   };
+
 
   // Check MetaMask status
   const checkMetaMask = () => {
@@ -863,7 +912,7 @@ setTimeout(() => setMintSuccess(""), 5000);
                 <div className="nft-list">
                       {nftMeta.map(nft => (
                         <div key={nft.tokenId + '-' + (nft.contract || '')} className="nft-card">
-                          <div className="nft-token-id">#{nft.tokenId}</div>
+                          <div className="nft-token-id">Token ID: {nft.tokenId}</div>
                           <div className="nft-contract">Contract: {nft.contract && (nft.contract.slice(0, 6) + '...' + nft.contract.slice(-4))}</div>
                           {nft.image ? (
                             <img className="nft-image" src={nft.image.startsWith('ipfs://') ? nft.image.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/') : nft.image} alt={nft.name || 'NFT'} />
@@ -915,4 +964,3 @@ setTimeout(() => setMintSuccess(""), 5000);
 }
 
 export default Backend;
-
