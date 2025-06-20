@@ -153,7 +153,7 @@ const Backend = () => {
         imageURI: imageIpfsUrl
       });
       setMintSuccess("NFT minted successfully!");
-setTimeout(() => setMintSuccess(""), 1000);
+setTimeout(() => setMintSuccess(""), 5000);
       // Refresh NFT list
       fetchHelloNFTs(walletAddress, signer);
     } catch (err) {
@@ -428,6 +428,7 @@ setTimeout(() => setMintSuccess(""), 1000);
       .catch(error => {
         console.error('Error Checking Network:', error);
         setNetworkError('Error Checking Network');
+        setTimeout(() => setNetworkError(""), 5000);
       });
   };
 
@@ -435,12 +436,7 @@ setTimeout(() => setMintSuccess(""), 1000);
   const initContract = async (signer) => {
     try {
       if (!signer) return null;
-      
-      // Check network before initializing contract
-      if (!isCorrectNetwork) {
-        throw new Error('Please Switch to Sepolia Testnet');
-      }
-      
+      await checkNetwork();     
       // Initialize contract
       const contract = new ethers.Contract(contractAddress, abi, signer);
       
@@ -467,6 +463,7 @@ setTimeout(() => setMintSuccess(""), 1000);
     } catch (error) {
       console.error('Error Initializing Contract:', error);
       setError(error.message);
+      setTimeout(() => setError(""), 5000);
       return null;
     }
   };
@@ -484,6 +481,27 @@ setTimeout(() => setMintSuccess(""), 1000);
     }
   };
 
+  // Add this constant near the top of the file with other constants
+  const SEPOLIA_CHAIN_ID = '0xaa36a7'; // Sepolia's chain ID
+
+  // Add this function to check network
+  const checkNetwork = async () => {
+    if (!window.ethereum) throw new Error('MetaMask not installed');
+    
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    if (chainId !== SEPOLIA_CHAIN_ID) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: SEPOLIA_CHAIN_ID }],
+        });
+      } catch (switchError) {
+        // User rejected the switch or it failed
+        throw new Error('Please switch to Sepolia Testnet');
+      }
+    }
+  };
+
   // Handle HLT transfer
   const handleTransfer = async (e) => {
     e.preventDefault();
@@ -491,8 +509,26 @@ setTimeout(() => setMintSuccess(""), 1000);
     setError("");
     setTransferMessage("");
     try {
+      await checkNetwork(); // Check network first
+      
       if (!walletAddress) throw new Error('Wallet Not Connected');
       if (!transferTo || !transferAmount) throw new Error('Recipient and amount required');
+      
+      // Validate transfer amount
+      if (Number(transferAmount) <= 0) {
+        throw new Error('Amount of Token HLT is 0');
+      }
+      
+      // Validate recipient address format
+      if (!ethers.utils.isAddress(transferTo) || transferTo.length !== 42) {
+        throw new Error('Incorrect Wallet Address');
+      }
+      
+      // Check if recipient is same as sender
+      if (transferTo.toLowerCase() === walletAddress.toLowerCase()) {
+        throw new Error('Cannot transfer to self');
+      }
+      
       // Get signer from MetaMask
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
@@ -503,13 +539,28 @@ setTimeout(() => setMintSuccess(""), 1000);
       const tx = await token.transfer(transferTo, amount);
       await tx.wait();
       setTransferMessage('Transfer successful!');
-      setTimeout(() => setTransferMessage(""), 5000); // Clear after 5 seconds
+      setTimeout(() => setTransferMessage(""), 5000);
       setTransferTo("");
       setTransferAmount("");
       // Refresh balance
       fetchHLTBalance(walletAddress, signer);
     } catch (error) {
-      setError(error.message);
+      if (error.message.includes('Please switch to Sepolia Testnet')) {
+        setError('Please switch to Sepolia Testnet');
+      } else if (error.message.includes('transfer amount exceeds balance')) {
+        setError('Insufficient Balance');
+      } else if (error.message.includes('Incorrect Wallet Address')) {
+        setError('Incorrect Wallet Address (must be 42 characters starting with 0x)');
+      } else if (error.code === 'ACTION_REJECTED') {
+        setError('Transaction rejected by user');
+      } else if (error.message.includes('Amount of Token HLT is 0')) {
+        setError('Amount of Token HLT must be greater than 0');
+      } else if (error.message.includes('Cannot transfer to self')) {
+        setError('You cannot Transfer HLT tokens to Your Own Account. Please Enter a Different Address.');
+      } else {
+        setError(error.message);
+      }
+      setTimeout(() => setError(""), 5000);
       setTransferMessage("");
     } finally {
       setTransferLoading(false);
@@ -554,6 +605,7 @@ setTimeout(() => setMintSuccess(""), 1000);
     } catch (error) {
       setLoading(false);
       setError(error.message);
+      setTimeout(() => setError(""), 5000);
     }
   };
 
@@ -590,6 +642,7 @@ setTimeout(() => setMintSuccess(""), 1000);
     } catch (error) {
       console.error('Error updating greeting:', error);
       setError(error.message || "Failed to update greeting");
+      setTimeout(() => setError(""), 5000);
     } finally {
       setLoading(false);
     }
@@ -646,6 +699,7 @@ setTimeout(() => setMintSuccess(""), 1000);
       } catch (error) {
         console.error('Error initializing contract:', error);
         setError('Error initializing contract');
+        setTimeout(() => setError(""), 5000);
       }
     };
 
@@ -668,6 +722,7 @@ setTimeout(() => setMintSuccess(""), 1000);
           } catch (error) {
             console.error('Error updating contract:', error);
             setError('Error updating contract');
+            setTimeout(() => setError(""), 5000);
           }
         }
       });
