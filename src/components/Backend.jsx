@@ -636,7 +636,7 @@ setTimeout(() => setMintSuccess(""), 1000);
         await fetchLatestGreeting();
 
         // Set up periodic refresh (every 20 seconds)
-        const refreshInterval = setInterval(fetchLatestGreeting, 20000);
+        const refreshInterval = setInterval(fetchLatestGreeting, 50000);
 
         // Cleanup interval on unmount
         return () => {

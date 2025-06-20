@@ -2,7 +2,7 @@
   max-width: 900px;
   margin: 40px auto;
   padding: 2.5rem 2rem 3rem 2rem;
-  background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
+  background: linear-gradient(135deg, #e2ebf4 0%, #e0e7ff 100%);
   border-radius: 20px;
   box-shadow: 0 8px 32px rgba(60, 60, 120, 0.15);
   min-height: 80vh;
@@ -10,7 +10,7 @@
 }
 
 body {
-  background: linear-gradient(120deg, #a18cd1 0%, #fbc2eb 100%);
+  background: linear-gradient(120deg, #b0d4f8 0%, #fbc2eb 100%);
   min-height: 100vh;
 }
 
