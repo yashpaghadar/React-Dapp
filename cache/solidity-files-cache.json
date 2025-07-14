@@ -38,8 +38,8 @@
       ]
     },
     "E:\\Yash\\SEM - 5\\Internship - II\\Programs\\Simple Demo\\React-Dapp\\contracts\\HelloNFT.sol": {
-      "lastModificationDate": 1750163353749,
-      "contentHash": "4d74cf7d3283826904ad4d9d583950c6",
+      "lastModificationDate": 1752462939257,
+      "contentHash": "a32d477e8bfce6635c46f227e64731d8",
       "sourceName": "contracts/HelloNFT.sol",
       "solcConfig": {
         "version": "0.8.17",

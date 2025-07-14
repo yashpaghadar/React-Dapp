@@ -22,7 +22,7 @@ contract HelloNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
      * @param tokenURI The metadata URI for the NFT.
      * @return The token ID of the newly minted NFT.
      */
-        function mintNFT(address to, string memory _tokenURI) public onlyOwner returns (uint256) {
+        function mintNFT(address to, string memory _tokenURI) public returns (uint256) {
         uint256 newTokenId = tokenCounter;
         _safeMint(to, newTokenId);
         _setTokenURI(newTokenId, _tokenURI);
