@@ -17,10 +17,10 @@ async function main() {
 
         // Mint 1 NFT to deployer with metadata
         const folderCID = "bafybeiadfdvthpteettt2msdsr5jhvxjwgddq3tfw327qx256vylclvyye";
-        const tokenURI = `https://gateway.pinata.cloud/ipfs/${folderCID}/2.json`;
+        const tokenURI = `https://gateway.pinata.cloud/ipfs/${folderCID}/0.json`;
         const mintTx = await helloNFT.mintNFT(deployer.address, tokenURI);
         await mintTx.wait();
-        const mintedTokenId = 2; 
+        const mintedTokenId = 0; 
         console.log(`Minted NFT Token ID: ${mintedTokenId} to ${deployer.address}`);
         console.log(`View your NFT on Etherscan under the ERC721 tab for contract: https://${network.name}.etherscan.io/address/${helloNFT.address}`);
 
